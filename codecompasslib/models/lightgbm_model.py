@@ -102,7 +102,7 @@ def train_lightGBM_model(df_merged: DataFrame, label_col: str) -> Tuple[lgb.Boos
     valid_data = concat([X_val, y_val], axis=1)
     test_data = concat([X_test, y_test], axis=1)
     
-    cate_cols = ['language']
+    cate_cols = ['language','name', 'owner_type', 'url', 'date_created', 'date_updated', 'date_pushed', 'updated_at', 'license', 'topics']
     ord_encoder: ordinal.OrdinalEncoder = ordinal.OrdinalEncoder(cols=cate_cols)
 
     train_x, train_y = encode_csv(train_data, ord_encoder, label_col)
@@ -128,13 +128,13 @@ def load_data(full_data_folder_id: str, full_data_embedded_folder_id: str) -> Tu
     :return: The non-embedded and embedded datasets
     """
 
-    creds = get_creds_drive()
-    df_non_embedded: DataFrame = download_csv_as_pd_dataframe(creds=creds, file_id=full_data_folder_id)
-    df_embedded: DataFrame = download_csv_as_pd_dataframe(creds=creds, file_id=full_data_embedded_folder_id)
+    #creds = get_creds_drive()
+    #df_non_embedded: DataFrame = download_csv_as_pd_dataframe(creds=creds, file_id=full_data_folder_id)
+    #df_embedded: DataFrame = download_csv_as_pd_dataframe(creds=creds, file_id=full_data_embedded_folder_id)
 
     # Having data locally works much faster than retrieving from drive. Uncomment the following lines to use local data
-    # df_non_embedded = pd.read_csv('codecompasslib/models/data_full.csv')
-    # df_embedded = pd.read_csv('codecompasslib/models/df_embedded_combined.csv')
+    df_non_embedded = pd.read_csv('codecompasslib/models/data_full_1000_a.csv')
+    df_embedded = pd.read_csv('codecompasslib/models/data_embedded_1000_a.csv')
 
     print("Data loaded")
     return df_non_embedded, df_embedded
@@ -158,7 +158,7 @@ def preprocess_data(df_embedded: DataFrame, df_non_embedded: DataFrame,
         List: List of repo IDs that are either starred or owned by the target user.
     """
     # Merge the embedded and non-embedded datasets (match based on ID), grab the column you need for training 
-    df_merged: DataFrame = pd.merge(df_embedded, df_non_embedded[['id', 'stars', 'language']], on='id', how='left')
+    df_merged: DataFrame = pd.merge(df_embedded, df_non_embedded[['id', 'stars', 'language']], on=['id', 'stars', 'language'], how='left')
 
     # Turn stars column into integer column
     df_merged['stars'] = df_merged['stars'].astype(int)

@@ -56,7 +56,6 @@ def main():
                 st.markdown(f"""
                 <div style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 10px; color: #333; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
                     <h3 style="margin-bottom: 5px; color: #000;">{name}</h3>
-                    <p style="color: #000;">{description}</p>
                     <a href="{link}" target="_blank" style="color: #0366d6; text-decoration: none;">View on GitHub</a>
                 </div>
                 """, unsafe_allow_html=True)
