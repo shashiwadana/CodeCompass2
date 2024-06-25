@@ -63,6 +63,10 @@ Recommender:
 ```
 streamlit run frontend/recommender/app.py
 ```
+Virtual Env:
+```
+source venv/bin/activate
+```
 ## Further Documentation
 For more in-depth information, refer to the `documentation/Final_Report` directory within the repository.
 
