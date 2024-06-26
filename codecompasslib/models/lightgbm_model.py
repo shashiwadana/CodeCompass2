@@ -42,28 +42,7 @@ def encode_csv(df: DataFrame, encoder, label_col: str, typ: str = "fit") -> Tupl
 def train_lightGBM_model(df_merged: DataFrame, label_col: str) -> Tuple[lgb.Booster, ordinal.OrdinalEncoder]:
     """
     Trains a LightGBM model using the provided merged dataframe.
-
-    This function trains a LightGBM model using the provided merged dataframe. It performs the following steps:
-        1. Sets the hyperparameters for the LightGBM model.
-        2. Splits the merged dataframe into training, validation, and test sets.
-        3. Encodes categorical columns using ordinal encoding.
-        4. Creates LightGBM datasets for training, validation, and test data.
-        5. Trains the LightGBM model using the training data.
-        6. Returns the trained LightGBM model and the ordinal encoder.
-
-    Note: This function assumes that the merged dataframe has the following columns:
-        - 'target': The target variable to be predicted.
-        - 'id': An identifier column.
-        - 'owner_user': A column representing the owner user.
-        - 'embedding_0' to 'embedding_255': Numerical columns representing the embeddings.
-        - 'language': A categorical column representing the language.
-        - 'stars': A numerical column representing the number of stars.
-
-    :param df_merged: DataFrame containing the training data.
-    :param label_col: The name of the target variable column.
-    :return: A tuple containing the trained LightGBM model and the ordinal encoder.
     """
-
     # Training LightGBM model
     MAX_LEAF: int = 64
     MIN_DATA: int = 20
@@ -89,37 +68,45 @@ def train_lightGBM_model(df_merged: DataFrame, label_col: str) -> Tuple[lgb.Boos
 
     print("Training LightGBM model")
 
-    X: DataFrame = df_merged.drop(columns=['target']) # drop columns not used for training
+    X: DataFrame = df_merged.drop(columns=[label_col])  # drop columns not used for training
     y: DataFrame = df_merged[label_col]
 
-    # Dataset is imbalaned -> make sure that the stratify parameter is set
+    # Dataset is imbalanced -> make sure that the stratify parameter is set
     X_combined, X_test, y_combined, y_test = train_test_split(X, y, test_size=0.1, random_state=42, stratify=y)
-    X_train, X_val, y_train, y_val = train_test_split(X_combined, y_combined, test_size=0.1, random_state=42,
-                                                      stratify=y_combined)
+    X_train, X_val, y_train, y_val = train_test_split(X_combined, y_combined, test_size=0.1, random_state=42, stratify=y_combined)
 
-    # combine X_train and y_train
+    # Combine X_train and y_train
     train_data = concat([X_train, y_train], axis=1)
     valid_data = concat([X_val, y_val], axis=1)
     test_data = concat([X_test, y_test], axis=1)
-    
-    cate_cols = ['language','name', 'owner_type', 'url', 'date_created', 'date_updated', 'date_pushed', 'updated_at', 'license', 'topics']
-    ord_encoder: ordinal.OrdinalEncoder = ordinal.OrdinalEncoder(cols=cate_cols)
+
+    # Define categorical columns
+    cate_cols = ['language', 'name', 'owner_type', 'url', 'date_created', 'date_updated', 'date_pushed', 'updated_at', 'license', 'topics']
+
+    # Check if all categorical columns are present in the data
+    present_cate_cols = [col for col in cate_cols if col in train_data.columns]
+    missing_cols = [col for col in cate_cols if col not in train_data.columns]
+    if missing_cols:
+        print(f"Warning: The following columns are missing and will be excluded: {missing_cols}")
+
+    ord_encoder: ordinal.OrdinalEncoder = ordinal.OrdinalEncoder(cols=present_cate_cols)
 
     train_x, train_y = encode_csv(train_data, ord_encoder, label_col)
     valid_x, valid_y = encode_csv(valid_data, ord_encoder, label_col, "transform")
     test_x, test_y = encode_csv(test_data, ord_encoder, label_col, "transform")
 
-    lgb_train = lgb.Dataset(train_x, train_y.reshape(-1), params=params, categorical_feature=cate_cols)
-    lgb_valid = lgb.Dataset(valid_x, valid_y.reshape(-1), reference=lgb_train, categorical_feature=cate_cols)
-    lgb_test = lgb.Dataset(test_x, test_y.reshape(-1), reference=lgb_train, categorical_feature=cate_cols)
+    lgb_train = lgb.Dataset(train_x, train_y.reshape(-1), params=params, categorical_feature=present_cate_cols)
+    lgb_valid = lgb.Dataset(valid_x, valid_y.reshape(-1), reference=lgb_train, categorical_feature=present_cate_cols)
+    lgb_test = lgb.Dataset(test_x, test_y.reshape(-1), reference=lgb_train, categorical_feature=present_cate_cols)
     lgb_model = lgb.train(params,
                           lgb_train,
                           num_boost_round=NUM_OF_TREES,
                           valid_sets=lgb_valid,
-                          categorical_feature=cate_cols,
+                          categorical_feature=present_cate_cols,
                           callbacks=[lgb.early_stopping(EARLY_STOPPING_ROUNDS)])
 
     return lgb_model, ord_encoder
+
 
 
 def load_data(full_data_folder_id: str, full_data_embedded_folder_id: str) -> Tuple[DataFrame, DataFrame]:
@@ -133,8 +120,8 @@ def load_data(full_data_folder_id: str, full_data_embedded_folder_id: str) -> Tu
     #df_embedded: DataFrame = download_csv_as_pd_dataframe(creds=creds, file_id=full_data_embedded_folder_id)
 
     # Having data locally works much faster than retrieving from drive. Uncomment the following lines to use local data
-    df_non_embedded = pd.read_csv('codecompasslib/models/data_full_1000_a.csv')
-    df_embedded = pd.read_csv('codecompasslib/models/data_embedded_1000_a.csv')
+    df_non_embedded = pd.read_csv('codecompasslib/models/data_full_1000_c.csv')
+    df_embedded = pd.read_csv('codecompasslib/models/data_embedded_1000_c.csv')
 
     print("Data loaded")
     return df_non_embedded, df_embedded
@@ -158,7 +145,7 @@ def preprocess_data(df_embedded: DataFrame, df_non_embedded: DataFrame,
         List: List of repo IDs that are either starred or owned by the target user.
     """
     # Merge the embedded and non-embedded datasets (match based on ID), grab the column you need for training 
-    df_merged: DataFrame = pd.merge(df_embedded, df_non_embedded[['id', 'stars', 'language']], on=['id', 'stars', 'language'], how='left')
+    df_merged: DataFrame = pd.merge(df_embedded, df_non_embedded[['id', 'stars', 'language']], on=['id'], how='left')
 
     # Turn stars column into integer column
     df_merged['stars'] = df_merged['stars'].astype(int)
