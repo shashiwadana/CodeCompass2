@@ -69,8 +69,11 @@ def main():
                 link = f"https://github.com/{repo[1]}/{name}"
 
                 # Determine the message to display for wiki availability
-                wiki_message = "Learning support available" if has_wiki or has_discussion else "Learning support unavailable"
-                
+                if has_wiki or has_discussion:
+                    wiki_message = "<span style='color: green;'>Available</span>"
+                else:
+                    wiki_message = "<span style='color: red;'>Unavailable</span>"
+
                 # Display recommendation details in a card-like format with shadow
                 st.markdown(f"""
                 <div style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 10px; color: #333; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
@@ -78,7 +81,7 @@ def main():
                     <p style="color: #000;">{description}</p>
                     <h6 style="margin-bottom: 5px; color: #000;">⭐ received: {stars} </h6>
                     <h6 style="margin-bottom: 5px; color: #000;">Last updated: {last_pushed}</h6>
-                    <h6 style="margin-bottom: 5px; color: #000;">{wiki_message}</h6>
+                    <h6 style="margin-bottom: 5px; color: #000;">Learning support: {wiki_message}</h6>
                     <a href="{link}" target="_blank" style="color: #0366d6; text-decoration: none;">View on GitHub</a>
                 </div>
                 """, unsafe_allow_html=True)
